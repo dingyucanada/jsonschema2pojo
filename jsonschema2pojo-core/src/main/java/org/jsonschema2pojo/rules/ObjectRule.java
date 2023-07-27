@@ -380,41 +380,7 @@ public class ObjectRule implements Rule<JPackage, JType> {
 
         // Incorporate each non-excluded field in the hashCode calculation
         for (JFieldVar fieldVar : fields.values()) {
-            if ((fieldVar.mods().getValue() & JMod.STATIC) == JMod.STATIC) {
-                continue;
-            }
-
-            JFieldRef fieldRef = JExpr.refthis(fieldVar.name());
-
-            JExpression fieldHash;
-            if (fieldVar.type().isPrimitive()) {
-                if ("long".equals(fieldVar.type().name())) {
-                    fieldHash = JExpr.cast(jclass.owner().INT, fieldRef.xor(fieldRef.shrz(JExpr.lit(32))));
-                } else if ("boolean".equals(fieldVar.type().name())) {
-                    fieldHash = JOp.cond(fieldRef, JExpr.lit(1), JExpr.lit(0));
-                } else if ("int".equals(fieldVar.type().name())) {
-                    fieldHash = fieldRef;
-                } else if ("double".equals(fieldVar.type().name())) {
-                    JClass doubleClass = jclass.owner().ref(Double.class);
-                    JExpression longField = doubleClass.staticInvoke("doubleToLongBits").arg(fieldRef);
-                    fieldHash = JExpr.cast(jclass.owner().INT,
-                            longField.xor(longField.shrz(JExpr.lit(32))));
-                } else if ("float".equals(fieldVar.type().name())) {
-                    fieldHash = jclass.owner().ref(Float.class).staticInvoke("floatToIntBits").arg(fieldRef);
-                } else {
-                    fieldHash = JExpr.cast(jclass.owner().INT, fieldRef);
-                }
-            } else if (fieldVar.type().isArray()) {
-                if (!fieldVar.type().elementType().isPrimitive()) {
-                    throw new UnsupportedOperationException("Only primitive arrays are supported");
-                }
-
-                fieldHash = jclass.owner().ref(Arrays.class).staticInvoke("hashCode").arg(fieldRef);
-            } else {
-                fieldHash = JOp.cond(fieldRef.eq(JExpr._null()), JExpr.lit(0), fieldRef.invoke("hashCode"));
-            }
-
-            body.assign(result, result.mul(JExpr.lit(31)).plus(fieldHash));
+            handleField(jclass, body, result, fieldVar);
         }
 
         // Add super.hashCode()
@@ -424,6 +390,50 @@ public class ObjectRule implements Rule<JPackage, JType> {
 
         body._return(result);
         hashCode.annotate(Override.class);
+    }
+
+    private static void handleField(JDefinedClass jclass, JBlock body, JVar result, JFieldVar fieldVar) {
+        if ((fieldVar.mods().getValue() & JMod.STATIC) == JMod.STATIC) {
+            return;
+        }
+
+        JFieldRef fieldRef = JExpr.refthis(fieldVar.name());
+
+        JExpression fieldHash;
+        if (fieldVar.type().isPrimitive()) {
+            fieldHash = handlePrimitiveField(jclass, fieldVar, fieldRef);
+        } else if (fieldVar.type().isArray()) {
+            if (!fieldVar.type().elementType().isPrimitive()) {
+                throw new UnsupportedOperationException("Only primitive arrays are supported");
+            }
+
+            fieldHash = jclass.owner().ref(Arrays.class).staticInvoke("hashCode").arg(fieldRef);
+        } else {
+            fieldHash = JOp.cond(fieldRef.eq(JExpr._null()), JExpr.lit(0), fieldRef.invoke("hashCode"));
+        }
+
+        body.assign(result, result.mul(JExpr.lit(31)).plus(fieldHash));
+    }
+
+    private static JExpression handlePrimitiveField(JDefinedClass jclass, JFieldVar fieldVar, JFieldRef fieldRef) {
+        JExpression fieldHash;
+        if ("long".equals(fieldVar.type().name())) {
+            fieldHash = JExpr.cast(jclass.owner().INT, fieldRef.xor(fieldRef.shrz(JExpr.lit(32))));
+        } else if ("boolean".equals(fieldVar.type().name())) {
+            fieldHash = JOp.cond(fieldRef, JExpr.lit(1), JExpr.lit(0));
+        } else if ("int".equals(fieldVar.type().name())) {
+            fieldHash = fieldRef;
+        } else if ("double".equals(fieldVar.type().name())) {
+            JClass doubleClass = jclass.owner().ref(Double.class);
+            JExpression longField = doubleClass.staticInvoke("doubleToLongBits").arg(fieldRef);
+            fieldHash = JExpr.cast(jclass.owner().INT,
+                    longField.xor(longField.shrz(JExpr.lit(32))));
+        } else if ("float".equals(fieldVar.type().name())) {
+            fieldHash = jclass.owner().ref(Float.class).staticInvoke("floatToIntBits").arg(fieldRef);
+        } else {
+            fieldHash = JExpr.cast(jclass.owner().INT, fieldRef);
+        }
+        return fieldHash;
     }
 
     private Map<String, JFieldVar> removeFieldsExcludedFromEqualsAndHashCode(Map<String, JFieldVar> fields, JsonNode node) {
