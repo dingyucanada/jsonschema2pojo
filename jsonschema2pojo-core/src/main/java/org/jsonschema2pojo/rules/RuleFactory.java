@@ -16,13 +16,8 @@
 
 package org.jsonschema2pojo.rules;
 
-import org.jsonschema2pojo.Annotator;
-import org.jsonschema2pojo.DefaultGenerationConfig;
-import org.jsonschema2pojo.GenerationConfig;
-import org.jsonschema2pojo.Jackson2Annotator;
-import org.jsonschema2pojo.NoopRuleLogger;
-import org.jsonschema2pojo.RuleLogger;
-import org.jsonschema2pojo.SchemaStore;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.jsonschema2pojo.*;
 import org.jsonschema2pojo.util.NameHelper;
 import org.jsonschema2pojo.util.ParcelableHelper;
 import org.jsonschema2pojo.util.ReflectionHelper;
@@ -444,6 +439,30 @@ public class RuleFactory {
 
     public Rule<JDocCommentable, JDocComment> getJavaNameRule() {
         return new JavaNameRule();
+    }
+
+    public void propertyAnnotations(String nodeName, JsonNode node, Schema schema, JDocCommentable generatedJavaConstruct) {
+        if (node.has("title")) {
+            getTitleRule().apply(nodeName, node.get("title"), node, generatedJavaConstruct, schema);
+        }
+
+        if (node.has("javaName")) {
+            getJavaNameRule().apply(nodeName, node.get("javaName"), node, generatedJavaConstruct, schema);
+        }
+
+        if (node.has("description")) {
+            getDescriptionRule().apply(nodeName, node.get("description"), node, generatedJavaConstruct, schema);
+        }
+
+        if (node.has("$comment")) {
+            getCommentRule().apply(nodeName, node.get("$comment"), node, generatedJavaConstruct, schema);
+        }
+
+        if (node.has("required")) {
+            getRequiredRule().apply(nodeName, node.get("required"), node, generatedJavaConstruct, schema);
+        } else {
+            getNotRequiredRule().apply(nodeName, node.get("required"), node, generatedJavaConstruct, schema);
+        }
     }
 
 }

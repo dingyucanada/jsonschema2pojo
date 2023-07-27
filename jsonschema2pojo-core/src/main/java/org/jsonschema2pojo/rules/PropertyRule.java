@@ -170,27 +170,7 @@ public class PropertyRule implements Rule<JDefinedClass, JDefinedClass> {
     }
 
     private void propertyAnnotations(String nodeName, JsonNode node, Schema schema, JDocCommentable generatedJavaConstruct) {
-        if (node.has("title")) {
-            ruleFactory.getTitleRule().apply(nodeName, node.get("title"), node, generatedJavaConstruct, schema);
-        }
-
-        if (node.has("javaName")) {
-            ruleFactory.getJavaNameRule().apply(nodeName, node.get("javaName"), node, generatedJavaConstruct, schema);
-        }
-
-        if (node.has("description")) {
-            ruleFactory.getDescriptionRule().apply(nodeName, node.get("description"), node, generatedJavaConstruct, schema);
-        }
-
-        if (node.has("$comment")) {
-            ruleFactory.getCommentRule().apply(nodeName, node.get("$comment"), node, generatedJavaConstruct, schema);
-        }
-
-        if (node.has("required")) {
-            ruleFactory.getRequiredRule().apply(nodeName, node.get("required"), node, generatedJavaConstruct, schema);
-        } else {
-            ruleFactory.getNotRequiredRule().apply(nodeName, node.get("required"), node, generatedJavaConstruct, schema);
-        }
+        ruleFactory.propertyAnnotations(nodeName, node, schema, generatedJavaConstruct);
     }
 
     private void formatAnnotation(JFieldVar field, JDefinedClass clazz, JsonNode node) {
