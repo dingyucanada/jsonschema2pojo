@@ -219,7 +219,7 @@ public class EnumRule implements Rule<JClassContainer, JType> {
      *
      * For "enum" handled by {@link #buildEnumDefinitionWithNoExtensions(String, JsonNode, JsonNode, JType)}
      * For "enum" and "javaEnums" handled by {@link #buildEnumDefinitionWithJavaEnumsExtension(String, JsonNode, JsonNode, JsonNode, JType)}
-     * For "enum" and "javaEnumNames" handled by {@link #buildEnumDefinitionWithJavaEnumNamesExtension(String, JsonNode, JsonNode, JsonNode, JType)}
+     * For "enum" and "javaEnumNames" handled by {@link #buildEnumDefinitionWithJavaEnumNamesExtension(EnumNamesExtensionArgs)}
      *
      * @param nodeName
      *            the name of the property which is an "enum"
@@ -252,7 +252,7 @@ public class EnumRule implements Rule<JClassContainer, JType> {
         if (!javaEnums.isMissingNode()) {
             enumDefinition = buildEnumDefinitionWithJavaEnumsExtension(nodeName, node, enums, javaEnums, backingType);
         } else if (!javaEnumNames.isMissingNode()) {
-            enumDefinition = buildEnumDefinitionWithJavaEnumNamesExtension(nodeName, node, enums, javaEnumNames, backingType);
+            enumDefinition = buildEnumDefinitionWithJavaEnumNamesExtension(new EnumNamesExtensionArgs(nodeName, node, enums, javaEnumNames, backingType));
         } else {
             enumDefinition = buildEnumDefinitionWithNoExtensions(nodeName, node, enums, backingType);
         }
@@ -280,25 +280,25 @@ public class EnumRule implements Rule<JClassContainer, JType> {
         return new EnumDefinition(nodeName, parentNode, backingType, enumValues, EnumDefinitionExtensionType.NONE);
     }
 
-    protected EnumDefinition buildEnumDefinitionWithJavaEnumNamesExtension(String nodeName, JsonNode parentNode, JsonNode enums, JsonNode javaEnumNames, JType backingType) {
+    protected EnumDefinition buildEnumDefinitionWithJavaEnumNamesExtension(EnumNamesExtensionArgs enumNamesExtensionArgs) {
 
         ArrayList<EnumValueDefinition> enumValues = new ArrayList<>();
 
         Collection<String> existingConstantNames = new ArrayList<>();
 
-        for (int i = 0; i < enums.size(); i++) {
-            JsonNode value = enums.path(i);
+        for (int i = 0; i < enumNamesExtensionArgs.getEnums().size(); i++) {
+            JsonNode value = enumNamesExtensionArgs.getEnums().path(i);
 
             if (!value.isNull()) {
-                String constantName = getConstantName(value.asText(), javaEnumNames.path(i).asText());
+                String constantName = getConstantName(value.asText(), enumNamesExtensionArgs.getJavaEnumNames().path(i).asText());
                 constantName = makeUnique(constantName, existingConstantNames);
                 existingConstantNames.add(constantName);
 
-                enumValues.add(new EnumValueDefinition(constantName, value.asText(), javaEnumNames));
+                enumValues.add(new EnumValueDefinition(constantName, value.asText(), enumNamesExtensionArgs.getJavaEnumNames()));
             }
         }
 
-        return new EnumDefinition(nodeName, parentNode, backingType, enumValues, EnumDefinitionExtensionType.JAVA_ENUM_NAMES);
+        return new EnumDefinition(enumNamesExtensionArgs.getNodeName(), enumNamesExtensionArgs.getParentNode(), enumNamesExtensionArgs.getBackingType(), enumValues, EnumDefinitionExtensionType.JAVA_ENUM_NAMES);
     }
 
     protected EnumDefinition buildEnumDefinitionWithJavaEnumsExtension(String nodeName, JsonNode enumNode, JsonNode enums, JsonNode javaEnums, JType type) {
@@ -507,4 +507,39 @@ public class EnumRule implements Rule<JClassContainer, JType> {
         }
     }
 
+    private static class EnumNamesExtensionArgs {
+        private final String nodeName;
+        private final JsonNode parentNode;
+        private final JsonNode enums;
+        private final JsonNode javaEnumNames;
+        private final JType backingType;
+
+        private EnumNamesExtensionArgs(String nodeName, JsonNode parentNode, JsonNode enums, JsonNode javaEnumNames, JType backingType) {
+            this.nodeName = nodeName;
+            this.parentNode = parentNode;
+            this.enums = enums;
+            this.javaEnumNames = javaEnumNames;
+            this.backingType = backingType;
+        }
+
+        public String getNodeName() {
+            return nodeName;
+        }
+
+        public JsonNode getParentNode() {
+            return parentNode;
+        }
+
+        public JsonNode getEnums() {
+            return enums;
+        }
+
+        public JsonNode getJavaEnumNames() {
+            return javaEnumNames;
+        }
+
+        public JType getBackingType() {
+            return backingType;
+        }
+    }
 }
